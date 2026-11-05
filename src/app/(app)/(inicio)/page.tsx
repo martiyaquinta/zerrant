@@ -84,9 +84,13 @@ export default async function InicioPage() {
             "project_id, profile_id, estado, motivo_rechazo, decidido_en, decidido_por, aviso_visto_en, projects:project_id(id, nombre)",
           )
           .eq("profile_id", userId)
-          .in("estado", ["aprobado", "rechazado"])
+          // Skip open self-join spam at the wire: aprobado needs another actor's decidido_por.
+          .or(
+            `estado.eq.rechazado,and(estado.eq.aprobado,decidido_por.not.is.null,decidido_por.neq.${userId})`,
+          )
           .not("decidido_en", "is", null)
-          .is("aviso_visto_en", null),
+          .is("aviso_visto_en", null)
+          .order("decidido_en", { ascending: false }),
   ]);
   const profiles = birthdayProfiles.data;
   const joinNotices = toProjectJoinNotices(

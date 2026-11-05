@@ -107,9 +107,10 @@ function mockSupabase(
   } = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
     not: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
     then: (cb: (v: unknown) => void) => cb({ data: [], error: null }),
   };
 
@@ -400,5 +401,30 @@ describe("InicioPage (/)", () => {
 
     render(await InicioPage());
     expect(screen.queryByRole("link", { name: "Ver beneficios" })).not.toBeInTheDocument();
+  });
+
+  it("loads join notices without self-decided aprobado spam and newest first (ZER-202)", async () => {
+    const { getOnboardingGateProfile } = await import("@/features/profile/onboarding-gate-server");
+    const { createClient } = await import("@/lib/supabase/server");
+    (getOnboardingGateProfile as ReturnType<typeof vi.fn>).mockResolvedValue({
+      profile: completeProfile,
+      error: null,
+      userId: "user-1",
+    });
+    const client = mockSupabase();
+    (createClient as ReturnType<typeof vi.fn>).mockResolvedValue(client);
+
+    render(await InicioPage());
+
+    expect(client.from).toHaveBeenCalledWith("project_members");
+    expect(client.projectMembersChain.eq).toHaveBeenCalledWith("profile_id", "user-1");
+    expect(client.projectMembersChain.or).toHaveBeenCalledWith(
+      "estado.eq.rechazado,and(estado.eq.aprobado,decidido_por.not.is.null,decidido_por.neq.user-1)",
+    );
+    expect(client.projectMembersChain.not).toHaveBeenCalledWith("decidido_en", "is", null);
+    expect(client.projectMembersChain.is).toHaveBeenCalledWith("aviso_visto_en", null);
+    expect(client.projectMembersChain.order).toHaveBeenCalledWith("decidido_en", {
+      ascending: false,
+    });
   });
 });

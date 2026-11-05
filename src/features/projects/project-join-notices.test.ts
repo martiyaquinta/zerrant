@@ -77,4 +77,31 @@ describe("toProjectJoinNotices", () => {
   it("ignores rows that do not belong to the viewer", () => {
     expect(toProjectJoinNotices([row({ profile_id: "someone-else" })], viewer)).toEqual([]);
   });
+
+  it("orders notices by decidido_en descending (newest first)", () => {
+    const notices = toProjectJoinNotices(
+      [
+        row({
+          project_id: "proj-old",
+          projects: { id: "proj-old", nombre: "Viejo" },
+          decidido_en: "2026-10-10T12:00:00Z",
+        }),
+        row({
+          project_id: "proj-new",
+          projects: { id: "proj-new", nombre: "Nuevo" },
+          decidido_en: "2026-10-20T12:00:00Z",
+          estado: "rechazado",
+          motivo_rechazo: "Cupo lleno",
+        }),
+        row({
+          project_id: "proj-mid",
+          projects: { id: "proj-mid", nombre: "Medio" },
+          decidido_en: "2026-10-15T12:00:00Z",
+        }),
+      ],
+      viewer,
+    );
+
+    expect(notices.map((n) => n.projectId)).toEqual(["proj-new", "proj-mid", "proj-old"]);
+  });
 });

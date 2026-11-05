@@ -567,6 +567,40 @@ describe("joinProject", () => {
     expect(mocks.membersUpdateEq).toHaveBeenCalledWith("estado", "rechazado");
   });
 
+  it("reopens a rechazado row to aprobado on abierto projects", async () => {
+    setupAuth("serrano-1");
+    mocks.profilesSelectSingle.mockResolvedValue({ data: { tier: "standard" } });
+    mocks.projectsMaybeSingle.mockResolvedValue({
+      data: { id: "proj-1", ingreso: "abierto" },
+      error: null,
+    });
+    mocks.membersMaybeSingle.mockResolvedValue({
+      data: { estado: "rechazado", project_id: "proj-1", profile_id: "serrano-1" },
+      error: null,
+    });
+    mocks.membersUpdateSelect.mockResolvedValue({
+      error: null,
+      data: [{ project_id: "proj-1" }],
+    });
+
+    const result = await joinProject(null, makeJoinForm("proj-1"));
+
+    expect(result).toBeNull();
+    expect(mocks.membersInsert).not.toHaveBeenCalled();
+    expect(mocks.membersUpdatePayload).toEqual({
+      estado: "aprobado",
+      motivo_rechazo: null,
+      decidido_en: null,
+      decidido_por: null,
+      aviso_visto_en: null,
+    });
+    expect(mocks.membersUpdateEq).toHaveBeenCalledWith("project_id", "proj-1");
+    expect(mocks.membersUpdateEq).toHaveBeenCalledWith("profile_id", "serrano-1");
+    expect(mocks.membersUpdateEq).toHaveBeenCalledWith("estado", "rechazado");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/nodo/projects/proj-1");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/");
+  });
+
   it("returns already member when existing row is aprobado", async () => {
     setupAuth("serrano-1");
     mocks.profilesSelectSingle.mockResolvedValue({ data: { tier: "standard" } });

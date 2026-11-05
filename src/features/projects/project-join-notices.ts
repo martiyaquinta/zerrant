@@ -31,6 +31,7 @@ function projectOf(row: RawProjectJoinNoticeRow): { id: string; nombre: string }
  * Rows the viewer should see on Inicio as undismissed join outcomes.
  * - Only aprobado/rechazado with a decision timestamp and no dismiss.
  * - Skip self-join spam: aprobado without decidido_por (or decidido_por === profile).
+ * - Newest decisions first (stable when several pile up).
  */
 export function toProjectJoinNotices(
   rows: RawProjectJoinNoticeRow[] | null | undefined,
@@ -47,6 +48,11 @@ export function toProjectJoinNotices(
       }
       if (row.estado === "rechazado" && !row.motivo_rechazo?.trim()) return false;
       return true;
+    })
+    .sort((a, b) => {
+      const aTs = a.decidido_en ? Date.parse(a.decidido_en) : 0;
+      const bTs = b.decidido_en ? Date.parse(b.decidido_en) : 0;
+      return bTs - aTs;
     })
     .map((row) => {
       const project = projectOf(row);
